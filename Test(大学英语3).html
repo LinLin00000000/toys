@@ -1,0 +1,1911 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8" />
+        <title>Test System</title>
+        <link
+            href="https://fonts.googleapis.com/css?family=Roboto:100,300,400,500,700,900"
+            rel="stylesheet"
+        />
+        <link
+            href="https://cdn.jsdelivr.net/npm/@mdi/font@4.x/css/materialdesignicons.min.css"
+            rel="stylesheet"
+        />
+        <link
+            href="https://cdn.jsdelivr.net/npm/vuetify@2.x/dist/vuetify.min.css"
+            rel="stylesheet"
+        />
+        <meta
+            name="viewport"
+            content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, minimal-ui"
+        />
+        <style type="text/css">
+            .unsolved:hover {
+                cursor: pointer;
+                color: cornflowerblue;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="app">
+            <v-app>
+                <v-app-bar-nav-icon
+                    @click.stop="drawer = !drawer"
+                    class="ml-3 mt-3"
+                ></v-app-bar-nav-icon>
+                <v-navigation-drawer v-model="drawer" absolute bottom temporary>
+                    <v-list nav dense>
+                        <v-list-item-group
+                            v-model="group"
+                            active-class="deep-purple--text text--accent-4"
+                            mandatory
+                        >
+                            <v-list-item
+                                v-for="(item, index) in typeTable"
+                                :key="index"
+                                >{{item}}</v-list-item
+                            >
+                        </v-list-item-group>
+                    </v-list>
+                </v-navigation-drawer>
+                <v-container>
+                    <div class="text-h5">
+                        {{ index + 1 }} / {{ questions.length }}
+                    </div>
+                    <div v-if="group === 0">
+                        <div class="text-h6">{{ theQuestion.question }}</div>
+                        <v-container>
+                            <p
+                                v-for="(item, index) in theQuestion.options"
+                                :key="index"
+                                @click="submit(index)"
+                                :class="[
+                                        theQuestion.submit && index === theQuestion.answer? 'green--text' : '',
+                                        index === input && index !== theQuestion.answer? 'red--text' : '',
+                                        theQuestion.submit ? '' : 'unsolved'
+                                    ]"
+                            >
+                                {{'ABCD'[index]}}. {{item}}
+                            </p>
+                        </v-container>
+                    </div>
+                    <div v-if="group === 1">
+                        <div class="text-h6">{{ theQuestion.question }}</div>
+                        <v-text-field v-model="input"></v-text-field>
+                        <div class="mb-4" v-show="theQuestion.submit">
+                            答案: {{ theQuestion.answer }}
+                        </div>
+                        <div class="mb-4" v-show="theQuestion.submit">
+                             {{ theQuestion.question.replace(/\(.*\)/, theQuestion.answer) }}
+                        </div>
+                        <v-btn
+                            outlined
+                            color="indigo"
+                            @click="submit"
+                            v-show="!theQuestion.submit"
+                            class="my-5"
+                            >提交</v-btn
+                        >
+                    </div>
+                    <div v-if="group === 2">
+                        <v-container class="d-flex flex-wrap">
+                            <v-card
+                                outlined
+                                shaped
+                                width="20%"
+                                class="text-center my-1"
+                                v-for="(item, index) in theQuestion.word"
+                                :key="index"
+                            >
+                                {{item}}
+                            </v-card>
+                        </v-container>
+                        <v-container>
+                            <v-row
+                                v-for="(item, index) in theQuestion.question"
+                                :key="index"
+                                class="align-center"
+                            >
+                                - {{ item.slice(0, item.indexOf('_')) }}<v-col
+                                    cols="2"
+                                    class="py-1"
+                                    ><v-text-field
+                                        v-model="input[index]"
+                                        hide-details="true"
+                                        class="py-0"
+                                    ></v-text-field
+                                ></v-col>
+                                {{item.slice(item.lastIndexOf('_') + 1)}}<span
+                                    class="pl-2"
+                                    v-show="theQuestion.submit"
+                                    :class="input[index] === theQuestion.answer[index] ? 'green--text' : 'red--text'"
+                                    >{{ input[index] ===
+                                    theQuestion.answer[index] ? '√' : '× ' +
+                                    theQuestion.answer[index] }}</span
+                                >
+                            </v-row>
+                        </v-container>
+                        <v-btn
+                            outlined
+                            color="indigo"
+                            @click="submit"
+                            v-show="!theQuestion.submit"
+                            class="my-5"
+                            >提交</v-btn
+                        >
+                    </div>
+                    <v-btn
+                        outlined
+                        color="indigo"
+                        @click="next"
+                        v-show="theQuestion.submit"
+                        class="my-5"
+                        >下一题</v-btn
+                    >
+                </v-container>
+            </v-app>
+        </div>
+
+        <script src="https://cdn.jsdelivr.net/npm/vue@2.x/dist/vue.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/vuetify@2.x/dist/vuetify.js"></script>
+        <script>
+            function shuffle(arr) {
+                arr.forEach((e, i) =>
+                    (random => ([arr[i], arr[random]] = [arr[random], arr[i]]))(
+                        (Math.random() * i) | 0
+                    )
+                )
+                return arr
+            }
+            function shuffleOptions(q) {
+                const ans = q.options[q.answer]
+                shuffle(q.options)
+                q.answer = q.options.indexOf(ans)
+            }
+            function zip(rows) {
+                return rows[0].map((_, c) => rows.map(row => row[c]))
+            }
+            function shuffleQuestions(q) {
+                return ([q.question, q.answer] = zip(
+                    shuffle(zip([q.question, q.answer]))
+                ))
+            }
+
+            const vm = new Vue({
+                el: '#app',
+                vuetify: new Vuetify(),
+                data: {
+                    input: [],
+                    typeTable: ['选择题', '问答题', '填空题'],
+                    drawer: false,
+                    group: 0,
+                    keyTable: {
+                        ArrowRight: this.next,
+                        Enter: this.submit,
+                    },
+                    data: {
+                        type1: [
+                            {
+                                question:
+                                    'He will never _____ the window this afternoon when he was playing football in the front yard.',
+                                options: [
+                                    'admit to break',
+                                    'admit to have broken',
+                                    'admit having broken',
+                                    'admit him break',
+                                ],
+                                answer: 'C',
+                            },
+                            {
+                                question:
+                                    '(reading) How many states entered the Union between 1818 and 1912?',
+                                options: ['30', '28', '13', '8'],
+                                answer: 'B',
+                            },
+                            {
+                                question:
+                                    '(reading) Now with TV people can _____.',
+                                options: [
+                                    'discuss politics at an information center',
+                                    'show more interest in politics',
+                                    'make their own decisions on political affairs',
+                                    'express their opinions freely',
+                                ],
+                                answer: 'B',
+                            },
+                            {
+                                question:
+                                    '(reading) The author of this passage will probably continue to talk about＿＿.',
+                                options: [
+                                    'how to determine what intelligence is',
+                                    'how education should be found',
+                                    'how to solve practical problems',
+                                    'how an unintelligent person should be taught',
+                                ],
+                                answer: 'D',
+                            },
+                            {
+                                question:
+                                    '(reading) At the opening of the nineteenth century, farmers in America_____.',
+                                options: [
+                                    'preferred light tools',
+                                    'were extremely self-reliant(自给的)',
+                                    'had many tools',
+                                    'had very few tools',
+                                ],
+                                answer: 'D',
+                            },
+                            {
+                                question:
+                                    '(reading) The first national flags of the United States           .',
+                                options: [
+                                    'represented the 13 colonies which won independence in 1776',
+                                    'were flown in American colonies in 1776',
+                                    'were flown in American colonies in 1795',
+                                    'gave representation to Congress',
+                                ],
+                                answer: 'A',
+                            },
+                            {
+                                question:
+                                    '(reading) The Americans go to the movies mainly because they want _____.',
+                                options: [
+                                    'to enjoy a good story',
+                                    'to experience an exciting life',
+                                    'to see the actors and actresses',
+                                    'to escape their daily life',
+                                ],
+                                answer: 'D',
+                            },
+                            {
+                                question:
+                                    'The trip to the museum has been _________ until Thursday 11th March.',
+                                options: [
+                                    'lengthened',
+                                    'postponed',
+                                    'prolonged',
+                                    'cancelled',
+                                ],
+                                answer: 'B',
+                            },
+                            {
+                                question:
+                                    '(reading) Which of the following doesn’t share the same meaning with the others?',
+                                options: [
+                                    'signs',
+                                    'gestures',
+                                    'efficient',
+                                    'body language',
+                                ],
+                                answer: 'C',
+                            },
+                            {
+                                question:
+                                    'What could have ____ him _____ this state of despair?',
+                                options: [
+                                    'brought; to',
+                                    'brought; on',
+                                    'brought; about',
+                                    'brought; forward',
+                                ],
+                                answer: 'A',
+                            },
+                            {
+                                question:
+                                    '(reading) Which of the following statement is NOT true?',
+                                options: [
+                                    'The need for labor helped the invention of machinery in America',
+                                    'The farmer rejected Charles Newbolt’s plow for fear of ruin of their fields.',
+                                    'Both Europe and America had great need for farm machinery .',
+                                    'It was in Indiana that the first chilled-steel plow was produced.',
+                                ],
+                                answer: 'C',
+                            },
+                            {
+                                question:
+                                    '(reading) In a new situation, an intelligent person＿＿.',
+                                options: [
+                                    'knows more about what might happen to him',
+                                    'is sure of the result he will get',
+                                    'concentrates on what to do about the situation',
+                                    'cares more about himself',
+                                ],
+                                answer: 'C',
+                            },
+                            {
+                                question:
+                                    "Last Saturday Mary _____ for Washington to take part in her grandmother's birthday party.",
+                                options: [
+                                    'is leaving',
+                                    'left',
+                                    'was leaving',
+                                    'would leave',
+                                ],
+                                answer: 'B',
+                            },
+                            {
+                                question:
+                                    "_____ his support, I think we'll win the election.",
+                                options: [
+                                    'To give',
+                                    'Giving',
+                                    'Given',
+                                    'Having given',
+                                ],
+                                answer: 'C',
+                            },
+                            {
+                                question:
+                                    '(reading) The best title for this passage is ____.',
+                                options: [
+                                    'Organs of Culture',
+                                    'Brain And Body',
+                                    'Looking into His Eyes',
+                                    'Language And Culture',
+                                ],
+                                answer: 'D',
+                            },
+                            {
+                                question:
+                                    '(reading) Which of the following is true according to the passage?',
+                                options: [
+                                    'Before 1959 the flag had been changed 25 times.',
+                                    'Each federal department has its own official flag.',
+                                    'The national flag of the U. S. had 26 stars on it after admission of Hawaii into the Union in 1959.',
+                                    'By 1912, there had been 48 states in the Union.',
+                                ],
+                                answer: 'D',
+                            },
+                            {
+                                question:
+                                    '(reading) Which of the following is NOT related to “physical satisfaction”?',
+                                options: [
+                                    'A successful career',
+                                    'A comfortable home',
+                                    'A good meal',
+                                    'A family car',
+                                ],
+                                answer: 'A',
+                            },
+                            {
+                                question:
+                                    '(reading) According to the passage, which of the following is true?',
+                                options: [
+                                    '.It is very difficult for the middle-aged to live in America.',
+                                    '.America is Kids’ Country because the majority of the American population are children.',
+                                    '. Kid’s Country was taking shape in America when immigrants poured into the country.',
+                                    '.America is more of Kid’ Country than any other countries in the world.',
+                                ],
+                                answer: 'D',
+                            },
+                            {
+                                question: '(reading) In the same culture＿＿.',
+                                options: [
+                                    'people have different ability to understand and express feelings',
+                                    'people have the same understanding of something',
+                                    'people never fail to understand each other',
+                                    'people are equally intelligent',
+                                ],
+                                answer: 'A',
+                            },
+                            {
+                                question:
+                                    '(reading) According to the passage, nonverbal communication _____.',
+                                options: [
+                                    'is a method often used by people who cannot speak',
+                                    'can tell something that words cannot',
+                                    'can be used to talk with people who cannot bear',
+                                    'is less used than words',
+                                ],
+                                answer: 'B',
+                            },
+                            {
+                                question:
+                                    '(reading) Is there any scientific evidence to support that eating too much is the cause of a “ weight problem?”',
+                                options: [
+                                    'Yes, there is plenty of evidence.',
+                                    'Of course, there is some evidence to show this is true.',
+                                    'There is hardly any scientific evidence to support this.',
+                                    'We don’t know because the information is not given.',
+                                ],
+                                answer: 'C',
+                            },
+                            {
+                                question:
+                                    '(reading) The author uses the example of the Renaissance painting to show that _____.',
+                                options: [
+                                    'adu1ts showed less concern for children than we do now',
+                                    'adults were smaller and thinner at that time, but they still had lots of work to do',
+                                    'children looked and acted like adults at that time',
+                                    'children were not permitted to appear in family paintings at that time',
+                                ],
+                                answer: 'C',
+                            },
+                            {
+                                question:
+                                    '(reading) Which of the following is NOT true?',
+                                options: [
+                                    'Less eye contact suggests distance in relation.',
+                                    'The longer one looks at you, the more interest he has in you.',
+                                    'There is more eye contact between people who like each other.',
+                                    'Shorter eye contact shows more interest in what one is talking about.',
+                                ],
+                                answer: 'D',
+                            },
+                            {
+                                question:
+                                    '(reading) What is mentioned as a consideration in buying a dog?',
+                                options: [
+                                    'The color of the dog.',
+                                    'The price of the dog.',
+                                    'Whether the dog will fit the environment.',
+                                    'Whether the dog will get along with the other pets in the house.',
+                                ],
+                                answer: 'C',
+                            },
+                            {
+                                question:
+                                    'Only under special circumstances __________ to take make-up tests.',
+                                options: [
+                                    'freshmen are permitted',
+                                    'are freshmen permitted',
+                                    'permitted are freshmen',
+                                    'are permitted freshmen',
+                                ],
+                                answer: 'B',
+                            },
+                            {
+                                question:
+                                    '(reading) Where the stars were placed on the national flag in 1818 was decided by\t.',
+                                options: [
+                                    'Congress',
+                                    'the president',
+                                    'the government',
+                                    'the flagmaker',
+                                ],
+                                answer: 'D',
+                            },
+                            {
+                                question:
+                                    'Prehistoric fish have _____ into some 30,000 different species.',
+                                options: [
+                                    'grown',
+                                    'descended',
+                                    'evolved',
+                                    'transformed',
+                                ],
+                                answer: 'C',
+                            },
+                            {
+                                question:
+                                    '(reading) The American movies are popular because _____.',
+                                options: [
+                                    'they are well-made and the stories are interesting',
+                                    'the characters in the movies are free to do whatever they like',
+                                    'the heroes have to cope with many problems and frustrations',
+                                    'good guys in the movies always win in the end',
+                                ],
+                                answer: 'A',
+                            },
+                            {
+                                question:
+                                    'Try _________ the shoes to see if they fit.',
+                                options: ['out', 'on', 'out for', 'for'],
+                                answer: 'B',
+                            },
+                            {
+                                question:
+                                    '(reading) The word “sociable” (Line 7, Paragraph2) most probably means _____.',
+                                options: [
+                                    'fond of talking freely',
+                                    'friendly with other people',
+                                    'concerned about social welfare',
+                                    'happy at school',
+                                ],
+                                answer: 'B',
+                            },
+                            {
+                                question:
+                                    'We are in __________ of extra pay for extra work.',
+                                options: ['favor', 'general', 'view', 'terms'],
+                                answer: 'A',
+                            },
+                            {
+                                question:
+                                    '(reading) In comparison with the adult American population today, the Americans of the 1910s_______.',
+                                options: [
+                                    'ate more food and had more physical activities',
+                                    'ate less food but had more activities',
+                                    'ate less food and had less physical exercise',
+                                    'had more weight problems',
+                                ],
+                                answer: 'A',
+                            },
+                            {
+                                question:
+                                    '(reading) What does “it” in line 2 can most probably be replaced by?',
+                                options: [
+                                    'Parents increasing children’s language development',
+                                    'Reading techniques being simple',
+                                    'Parents reading to children',
+                                    'Children’s intelligence development',
+                                ],
+                                answer: 'A',
+                            },
+                            {
+                                question:
+                                    '(reading) According to the article, given 500 adult Americans, _______ people will have a “weight problem.”',
+                                options: ['30', '50', '100', '150'],
+                                answer: 'D',
+                            },
+                            {
+                                question:
+                                    '(reading) According to this passage, intelligence is＿＿.',
+                                options: [
+                                    'the ability to study well',
+                                    'the ability to do well in school',
+                                    'the ability to deal with life',
+                                    'the ability to get high scores on some tests',
+                                ],
+                                answer: 'C',
+                            },
+                            {
+                                question:
+                                    '(reading) The author’s attitude towards American education can be best described as _____.',
+                                options: [
+                                    'favorable',
+                                    'negative',
+                                    'tolerant',
+                                    'unfriendly',
+                                ],
+                                answer: 'A',
+                            },
+                            {
+                                question:
+                                    '(reading) Constant smiling without apparent reason _____.',
+                                options: [
+                                    'is a sign of one’s friendliness',
+                                    'is a sign of one’s unfriendliness',
+                                    'makes people feel happy',
+                                    'makes people feel uncomfortable',
+                                ],
+                                answer: 'D',
+                            },
+                            {
+                                question:
+                                    'This aircraft _____ several new safety features in addition to the standard ones.',
+                                options: [
+                                    'absorbs',
+                                    'incorporates',
+                                    'accumulates',
+                                    'insulates',
+                                ],
+                                answer: 'B',
+                            },
+                            {
+                                question:
+                                    "The hero's funeral is the most __________ scene in the play.",
+                                options: [
+                                    'domineering',
+                                    'conforming',
+                                    'conflicting',
+                                    'striking',
+                                ],
+                                answer: 'D',
+                            },
+                            {
+                                question:
+                                    "There were no tickets __________ for Friday's concert.",
+                                options: [
+                                    'achievable',
+                                    'accessible',
+                                    'available',
+                                    'acceptable',
+                                ],
+                                answer: 'C',
+                            },
+                            {
+                                question:
+                                    '(reading) What is the main concern of man on the fourth level?',
+                                options: [
+                                    'The more goods the better.',
+                                    'The more mental satisfaction the better.',
+                                    'The more “luxury” items the better.',
+                                    'The more earnings the better.',
+                                ],
+                                answer: 'B',
+                            },
+                            {
+                                question:
+                                    '(reading) Why were only the flags of various European nations flown over the land during the discovery and settlement period?',
+                                options: [
+                                    'Because the flags were older than the national flag of the U. S.',
+                                    'Because the land was divided by these nations.',
+                                    'Because there was no universal flag over the land.',
+                                    "We don't know from the passage.",
+                                ],
+                                answer: 'B',
+                            },
+                            {
+                                question:
+                                    'She went round the room, talking to each woman in turn but _____ little response from any of them.',
+                                options: [
+                                    'eliciting',
+                                    'arousing',
+                                    'commanding',
+                                    'engaging',
+                                ],
+                                answer: 'A',
+                            },
+                            {
+                                question:
+                                    'The two events led to ____ changes in the international situation.',
+                                options: [
+                                    'typical',
+                                    'dramatic',
+                                    'impulsive',
+                                    'terrifying',
+                                ],
+                                answer: 'B',
+                            },
+                            {
+                                question:
+                                    '(reading) From the passage, we can conclude that _____.',
+                                options: [
+                                    'children should keep away from TV',
+                                    'TV programs should be improved',
+                                    'children’s books should have pictures',
+                                    'TV has a deep influence on the young',
+                                ],
+                                answer: 'D',
+                            },
+                            {
+                                question: '(reading) The South American _____.',
+                                options: [
+                                    'tends to keep a distance between himself and the person he is speaking to',
+                                    'usually stands close to the person he is talking to',
+                                    'is often unfriendly when spoken to',
+                                    'is often cold and distant when speaking',
+                                ],
+                                answer: 'B',
+                            },
+                            {
+                                question:
+                                    '(reading) The author tends to think that the fifth level＿＿.',
+                                options: [
+                                    'would be little better than the fourth level',
+                                    'may be a lot more desirable than the first four',
+                                    'can be the last and most satisfying level',
+                                    'will become attainable before the government takes actions',
+                                ],
+                                answer: 'B',
+                            },
+                            {
+                                question:
+                                    '(reading) According to this passage, the best way to learn a foreign language is ____.',
+                                options: [
+                                    'to read the works of poets and philosophers',
+                                    'to find a native speaker and look directly into his eyes',
+                                    'to begin by learning its body language',
+                                    'to visit a country where you can study',
+                                ],
+                                answer: 'C',
+                            },
+                            {
+                                question:
+                                    '(reading) The physical problem that many adult Americans have is that ________.',
+                                options: [
+                                    'they are too slim',
+                                    'they work too hard',
+                                    'they are too fat',
+                                    'they lose too much body fat',
+                                ],
+                                answer: 'C',
+                            },
+                            {
+                                question:
+                                    'These weapons add a new ______ to modern warfare.',
+                                options: [
+                                    'flavor',
+                                    'factor',
+                                    'respect',
+                                    'dimension',
+                                ],
+                                answer: 'D',
+                            },
+                            {
+                                question:
+                                    '(reading) Why does the writer say a dog is a more demanding pet than a cat?',
+                                options: [
+                                    'It must be trained so that it won’t bite.',
+                                    'It demands more food and space.',
+                                    'It needs more love and care.',
+                                    'It must be looked after carefully.',
+                                ],
+                                answer: 'C',
+                            },
+                            {
+                                question:
+                                    '(reading) People’s facial expressions may be misunderstood because＿＿.',
+                                options: [
+                                    'people of different ages may have different understanding',
+                                    'people have different cultures',
+                                    'people of different sex may understand a gesture in a different way',
+                                    'people of different countries speak different languages',
+                                ],
+                                answer: 'B',
+                            },
+                            {
+                                question:
+                                    "Reading the newspaper _____ one of my parents' life habits since they retired.",
+                                options: [
+                                    'become',
+                                    'have become',
+                                    'are becoming',
+                                    'has become',
+                                ],
+                                answer: 'D',
+                            },
+                            {
+                                question:
+                                    'My uncle was made ______ his research work due to his ill health.',
+                                options: [
+                                    'giving up',
+                                    'to give up',
+                                    'given up',
+                                    'give up',
+                                ],
+                                answer: 'B',
+                            },
+                            {
+                                question:
+                                    '(reading) According to the passage, the U.S. elementary education is supposed to make children _____.',
+                                options: [
+                                    'sensible and sensitive',
+                                    'competitive and interested',
+                                    'curious and friendly',
+                                    'happy and co-operative',
+                                ],
+                                answer: 'D',
+                            },
+                            {
+                                question:
+                                    '(reading) An animal weighing less than two and a half grams would starve because it would not be able to\t\t.',
+                                options: [
+                                    'get enough oxygen',
+                                    'maintain its body temperature',
+                                    'burn its food fast enough',
+                                    'eat fast enough to supply fuel',
+                                ],
+                                answer: 'D',
+                            },
+                            {
+                                question:
+                                    "If we have time this summer, I'd like to ____ some of the less well-known parts of the country.",
+                                options: [
+                                    'investigate',
+                                    'search',
+                                    'explore',
+                                    'settle',
+                                ],
+                                answer: 'C',
+                            },
+                            {
+                                question:
+                                    '(reading) The passage is mainly about _____.',
+                                options: [
+                                    'the agriculture revolution',
+                                    'the invention of labor –saving machinery',
+                                    'the development of scientific agriculture',
+                                    'the farming machinery in America',
+                                ],
+                                answer: 'B',
+                            },
+                            {
+                                question: '(reading) Too long a gaze _____.',
+                                options: [
+                                    'may upset people being looked at',
+                                    'shows one’s great confidence',
+                                    'indicates one’s interest in the talk',
+                                    'tells you how friendly one is',
+                                ],
+                                answer: 'A',
+                            },
+                            {
+                                question:
+                                    '(reading) Small animals are said to live faster than big ones because they\t\t.',
+                                options: [
+                                    'have more skin for every ounce of body weight',
+                                    'replace lost heat faster',
+                                    'burn fuel faster',
+                                    'maintain a higher body temperature',
+                                ],
+                                answer: 'C',
+                            },
+                            {
+                                question:
+                                    '(reading) Modern scientific researches have reported to us that ________.',
+                                options: [
+                                    'fat people eat less food and are less active',
+                                    'fat people eat more food than slim people and are more active',
+                                    'fat people eat more food than slim people but are less active',
+                                    'thin people run less, but have greater increase in food intake',
+                                ],
+                                answer: 'A',
+                            },
+                            {
+                                question:
+                                    '(reading) Why is it advised to buy a baby dog under three months old?',
+                                options: [
+                                    'It’s easier to buy a baby dog under three months old.',
+                                    'They are less likely to be shy with human beings.',
+                                    'They are less likely to run away.',
+                                    'It’s easier for them to form a relationship with their masters.',
+                                ],
+                                answer: 'D',
+                            },
+                            {
+                                question:
+                                    'Each parent and child _____ asked to attend one of the lectures given by Professor Wang during this term.',
+                                options: ['were', 'are', 'has', 'is'],
+                                answer: 'D',
+                            },
+                            {
+                                question:
+                                    '(reading) The word “here”(Para,1,Line 5) refers to ______.',
+                                options: [
+                                    'Europe',
+                                    'America',
+                                    'New Jersey',
+                                    'Indiana',
+                                ],
+                                answer: 'B',
+                            },
+                            {
+                                question:
+                                    "It's impossible to __________ exactly how our reactions will affect the future.",
+                                options: [
+                                    'expect',
+                                    'assess',
+                                    'foresee',
+                                    'guess',
+                                ],
+                                answer: 'C',
+                            },
+                            {
+                                question:
+                                    'The talks had been __________ but much remained to be done.',
+                                options: [
+                                    'fruitful',
+                                    'effective',
+                                    'advantageous',
+                                    'valid',
+                                ],
+                                answer: 'A',
+                            },
+                            {
+                                question:
+                                    '(reading) If an intelligent person failed, he would＿＿.',
+                                options: [
+                                    'try not to feel ashamed',
+                                    'learn form his experiences',
+                                    'try to regret as much as possible',
+                                    'make sure what result he would get',
+                                ],
+                                answer: 'B',
+                            },
+                            {
+                                question:
+                                    '(reading) According to the passage, man will begin to think about such needs as housing and clothing only when＿＿.',
+                                options: [
+                                    'he has saved up enough money',
+                                    'he has grown dissatisfied with his simple shelter',
+                                    'he has satisfied his hunger',
+                                    'he has learned to build houses',
+                                ],
+                                answer: 'C',
+                            },
+                            {
+                                question:
+                                    '(reading) In the past, many young people ______.',
+                                options: [
+                                    'knew the effects of war',
+                                    'went in for politics',
+                                    'liked to save the wounded in wars',
+                                    'were willing to be soldiers',
+                                ],
+                                answer: 'D',
+                            },
+                            {
+                                question:
+                                    'This middle school is __________ to a key university.',
+                                options: [
+                                    'attained',
+                                    'attacked',
+                                    'attached',
+                                    'attracted',
+                                ],
+                                answer: 'C',
+                            },
+                            {
+                                question:
+                                    '(reading) The selection says that every animal is a living radiator because it\t\t.',
+                                options: [
+                                    'produces heat in its body cells',
+                                    'burns fuel to produce heat',
+                                    'gives off heat through its skin',
+                                    'requires oxygen to produce heat',
+                                ],
+                                answer: 'C',
+                            },
+                            {
+                                question:
+                                    '(reading) Which of the following can be inferred from the passage?',
+                                options: [
+                                    'Children who talk a lot are more intelligent.',
+                                    'Parents who listen to their children can teach them more.',
+                                    'Active children should read more and be given more attention.',
+                                    'Verbal ability can easily be developed with proper methods.',
+                                ],
+                                answer: 'D',
+                            },
+                            {
+                                question:
+                                    '(reading) Which of the following is people’s normal response to the movies they watch?',
+                                options: [
+                                    'They feel that everything on the screen is familiar to them.',
+                                    'They try to turn their dreams into reality.',
+                                    'They become so involved that they forget their own problems.',
+                                    'They are touched by the life stories of the stories of the actors and actresses.',
+                                ],
+                                answer: 'C',
+                            },
+                            {
+                                question:
+                                    'Farmers will have a bumper (特大的) harvest, __________ that the whether is favorable.',
+                                options: [
+                                    'consuming',
+                                    'assuming',
+                                    'assuring',
+                                    'resuming',
+                                ],
+                                answer: 'B',
+                            },
+                            {
+                                question:
+                                    '(reading) Some Americans complain about elementary schools because they think _____.',
+                                options: [
+                                    'children are reluctant to help each other',
+                                    'schools lay too much emphasis on co-operation',
+                                    'children should grow up with competitive ideas',
+                                    'schools give little actual instruction to children',
+                                ],
+                                answer: 'D',
+                            },
+                            {
+                                question:
+                                    '(reading) It is obvious that real life is _____.',
+                                options: [
+                                    'less romantic than that in the movies',
+                                    'more romantic than that in the movies',
+                                    'as romantic as that in the movies',
+                                    'filled with romantic stories',
+                                ],
+                                answer: 'A',
+                            },
+                            {
+                                question:
+                                    '(reading) “As many languages as one speaks, so many lives …” means ____.',
+                                options: [
+                                    'if one learns many foreign languages, one will have a better understanding of his own language',
+                                    'life is richer and more interesting if one knows several languages',
+                                    'no matter how many languages one knows, one can never know more than one’s own culture',
+                                    'if a person speaks only one language, he will live a very happy life',
+                                ],
+                                answer: 'B',
+                            },
+                            {
+                                question:
+                                    '(reading) Going to the moon is an example of ________.',
+                                options: [
+                                    "America's dreams and creativity",
+                                    "America's childish and queer behavior",
+                                    "why America hasn't grown up",
+                                    'why America is considered the greatest country in the world',
+                                ],
+                                answer: 'A',
+                            },
+                            {
+                                question:
+                                    'This might explain the __________ feeling I have long had about pop music.',
+                                options: [
+                                    'intuitive',
+                                    'instructive',
+                                    'inventive',
+                                    'incentive',
+                                ],
+                                answer: 'A',
+                            },
+                            {
+                                question:
+                                    '(reading) By saying “condemning all of us to remain boys and girls forever, jogging and doing push-ups against eternity”, the author means that ______.',
+                                options: [
+                                    '. she thinks people shouldn’t be so concerned about physical fitness',
+                                    '.she feels too old and tired to do such hard exercise',
+                                    '.American society is overemphasizing youth and physical appearance',
+                                    '.What happened to children centuries ago may occur to adults in America soon',
+                                ],
+                                answer: 'C',
+                            },
+                            {
+                                question:
+                                    '(reading) In the third paragraph, the Old Country is contrasted with America _______.',
+                                options: [
+                                    'to show differences in family size',
+                                    'to show differences in attitudes towards family relations',
+                                    'to show two kinds of geography',
+                                    'to show two different kinds of economic relations between generations',
+                                ],
+                                answer: 'D',
+                            },
+                            {
+                                question:
+                                    '(reading) The speed at which an animal lives is determined by measuring\t\t.',
+                                options: [
+                                    'the amount of food it eats',
+                                    'its body temperature',
+                                    'the rate at which it uses oxygen',
+                                    'the amount of oxygen it uses',
+                                ],
+                                answer: 'C',
+                            },
+                            {
+                                question:
+                                    '(reading) The word “affection” (line 11) means _____.',
+                                options: [
+                                    'love',
+                                    'effect',
+                                    'tie',
+                                    'relationship',
+                                ],
+                                answer: 'A',
+                            },
+                            {
+                                question:
+                                    '(reading) From this passage, we can conclude＿＿.',
+                                options: [
+                                    'words are used as frequently as gestures',
+                                    'words are often found difficult to understand',
+                                    'words and gestures are both used in expressing feelings',
+                                    'gestures are more efficiently used than words',
+                                ],
+                                answer: 'C',
+                            },
+                            {
+                                question:
+                                    '(reading) The best conclusion we can draw from the passage is that _______.',
+                                options: [
+                                    'parents should be trained to read to their children',
+                                    'the more children read, the more intelligent they will become',
+                                    'children’s language skills increase when they are required to respond actively',
+                                    'children who read actively seem six months older',
+                                ],
+                                answer: 'C',
+                            },
+                            {
+                                question:
+                                    '(reading) The best title for this passage may be＿＿.',
+                                options: [
+                                    'Words and Feelings',
+                                    'Words, Gestures and Feelings',
+                                    'Gestures and Feelings',
+                                    'Culture and Understanding',
+                                ],
+                                answer: 'B',
+                            },
+                            {
+                                question:
+                                    'The nurses do all they can to make the patients feel __________.',
+                                options: [
+                                    'at stake',
+                                    'at ease',
+                                    'at hand',
+                                    'at random',
+                                ],
+                                answer: 'B',
+                            },
+                            {
+                                question:
+                                    'With the hospitality so _____ of these people, they opened their house to over fifty guests.',
+                                options: [
+                                    'unique',
+                                    'characteristic',
+                                    'special',
+                                    'particular',
+                                ],
+                                answer: 'B',
+                            },
+                            {
+                                question:
+                                    'The general strike is a means of _____ the total authority of the government.',
+                                options: [
+                                    'incorporating',
+                                    'reinforcing',
+                                    'challenging',
+                                    'transforming',
+                                ],
+                                answer: 'C',
+                            },
+                            {
+                                question:
+                                    '(reading) The amount of oxygen an animal uses depends on\t\t.',
+                                options: [
+                                    'its body weight',
+                                    'the food it eats',
+                                    'its general size and shape',
+                                    'the length of time it lives',
+                                ],
+                                answer: 'A',
+                            },
+                            {
+                                question:
+                                    '(reading) Which is NOT true according to the passage?',
+                                options: [
+                                    'People have become used to crimes now.',
+                                    'With a TV set some problems can be solved quickly.',
+                                    'People now like to read books with pictures.',
+                                    'The adults are less violent than the young.',
+                                ],
+                                answer: 'B',
+                            },
+                            {
+                                question:
+                                    "It is the first time that we _____ such an interesting trip since we've been in college.",
+                                options: [
+                                    'took part in',
+                                    'take part in',
+                                    'will take part in',
+                                    'have taken part in',
+                                ],
+                                answer: 'D',
+                            },
+                            {
+                                question:
+                                    '(reading) Which of the following is Not true according to the passage?',
+                                options: [
+                                    'You can always get help from the specialists.',
+                                    'It is common sense that is the most important when choosing a dog.',
+                                    'You should decide what kind of dog you want.',
+                                    'Size and characteristics of the dogs should be considered too.',
+                                ],
+                                answer: 'B',
+                            },
+                            {
+                                question:
+                                    "He thinks he can get away with cheating me, but I'll make him _____.",
+                                options: [
+                                    'pay off',
+                                    'pay up',
+                                    'pay for',
+                                    'pay',
+                                ],
+                                answer: 'D',
+                            },
+                            {
+                                question:
+                                    'She strode quickly down the street, ignoring the beggars who were ____ out their hands for money.',
+                                options: [
+                                    'extending',
+                                    'lending',
+                                    'stretching',
+                                    'reaching',
+                                ],
+                                answer: 'C',
+                            },
+                            {
+                                question:
+                                    '(reading) According to this passage, gestures are ____.',
+                                options: [
+                                    'spoken words',
+                                    'a non-language element',
+                                    'pictures in a language',
+                                    'written language',
+                                ],
+                                answer: 'B',
+                            },
+                            {
+                                question:
+                                    '(reading) Bright children and not-bright children＿＿.',
+                                options: [
+                                    'are two different types of children',
+                                    'are different mainly in their degree of cleverness',
+                                    'have difference only in their way of thinking',
+                                    'have different knowledge about the world',
+                                ],
+                                answer: 'A',
+                            },
+                            {
+                                question:
+                                    '(reading) It is implied but not stated in the passage that_____.',
+                                options: [
+                                    'there was a shortage of workers on American farms',
+                                    'the most important of the early invention was the iron plow',
+                                    'after 1869, many people devoted their attention to the plow',
+                                    'Charles Newbolt had made a fortune by his cast-iron plow',
+                                ],
+                                answer: 'A',
+                            },
+                            {
+                                question:
+                                    'He seemed very young, but __________ he was older than all of us.',
+                                options: [
+                                    'in nature',
+                                    'in reality',
+                                    'by nature',
+                                    'in origin',
+                                ],
+                                answer: 'B',
+                            },
+                            {
+                                question:
+                                    '(reading) According to the author, which of the following questions is the best type to ask children about?',
+                                options: [
+                                    'Do you see the elephant?',
+                                    'Is the elephant in the cage?',
+                                    'What animals do you like?',
+                                    'Shall we go to the zoo?',
+                                ],
+                                answer: 'C',
+                            },
+                            {
+                                question:
+                                    "Don't ____ your mother ____ everyday difficulties even if she is old.",
+                                options: [
+                                    'separate; from',
+                                    'keep; out of',
+                                    'insulate; from',
+                                    'distract; from',
+                                ],
+                                answer: 'C',
+                            },
+                            {
+                                question:
+                                    "If he _____ his mother's advice, he _____ be much better now.",
+                                options: [
+                                    'should have taken; would',
+                                    'took; would',
+                                    'had taken; would',
+                                    'took; will',
+                                ],
+                                answer: 'C',
+                            },
+                            {
+                                question:
+                                    '(reading) People enjoy seeing the movies because they _____.',
+                                options: [
+                                    'are tired of their everyday lives',
+                                    'feel inspired by the heroic deeds of the good guys',
+                                    'want to see who win in the end',
+                                    'have to cope with many problems in their lives',
+                                ],
+                                answer: 'B',
+                            },
+                            {
+                                question:
+                                    'People have little information on the __________ of air pollution near the factory.',
+                                options: ['extent', 'range', 'grade', 'limit'],
+                                answer: 'A',
+                            },
+                            {
+                                question:
+                                    "I'm sure Harry will remember, but why not give him a ring __________ he forgets?",
+                                options: [
+                                    'in the case',
+                                    'in case of',
+                                    'in case',
+                                    'in the case of',
+                                ],
+                                answer: 'C',
+                            },
+                            {
+                                question:
+                                    '(reading) It can be inferred from the passage that by the end of World War II, most Americans＿＿.',
+                                options: [
+                                    'were very rich',
+                                    'lived in poverty',
+                                    'had the good things on the first three levels',
+                                    'did not own automobiles',
+                                ],
+                                answer: 'D',
+                            },
+                            {
+                                question:
+                                    'They work hard to ____ a barren (贫瘠的) landscape into an area of beautiful pastureland.',
+                                options: [
+                                    'transform',
+                                    'transition',
+                                    'transit',
+                                    'transport',
+                                ],
+                                answer: 'A',
+                            },
+                            {
+                                question:
+                                    '(reading) The difference between the control group and the experimental group was _______.',
+                                options: [
+                                    'the training that parents received',
+                                    'the age of the children',
+                                    'the books that were read',
+                                    'the number of the children',
+                                ],
+                                answer: 'A',
+                            },
+                            {
+                                question:
+                                    '(reading) The author thinks that TV advertisements _____.',
+                                options: [
+                                    'are not reliable on the whole',
+                                    'are useless to people',
+                                    'are a good guide to adults',
+                                    'are very harmful to the young',
+                                ],
+                                answer: 'A',
+                            },
+                            {
+                                question:
+                                    'In that year, the invaders, _____ with modern weapons, went to the country, _____ to _____ them.',
+                                options: [
+                                    'arming; hoping; controlling',
+                                    'armed; to hope; to be controlled',
+                                    'armed; hoping; control',
+                                    'arm; to hope; to be controlling',
+                                ],
+                                answer: 'C',
+                            },
+                            {
+                                question:
+                                    '(reading) The American educational system emphasizes _____.',
+                                options: [
+                                    'material wealth',
+                                    'competition',
+                                    'co-operation',
+                                    'personal benefit',
+                                ],
+                                answer: 'C',
+                            },
+                            {
+                                question:
+                                    '(reading) According to the passage,＿＿.',
+                                options: [
+                                    'we can hardly understand what people’s gestures mean',
+                                    'we can not often be sure what people mean when they describe their feelings in words or \r\ngestures',
+                                    'words can be better understood by older people',
+                                    'gestures can be understood by most of the people while words can not',
+                                ],
+                                answer: 'B',
+                            },
+                            {
+                                question:
+                                    "I'd rather marry a man who had a(n) _____ of humor than one who was stunningly (非常地) attractive.",
+                                options: [
+                                    'capability',
+                                    'insight',
+                                    'knowledge',
+                                    'sense',
+                                ],
+                                answer: 'D',
+                            },
+                            {
+                                question:
+                                    'She _____ polite at the party last night. But actually she is not the least bit polite.',
+                                options: [
+                                    'has been',
+                                    'would be',
+                                    'were',
+                                    'was being',
+                                ],
+                                answer: 'D',
+                            },
+                        ],
+                        type2: [
+                            {
+                                question:
+                                    '今天我不再给孩子们买任何别的东西了——事实上，我已经花了太多的钱了。(as it is)',
+                                answer: "I'm not buying the children anything else today—as it is, I've spent far too much money.",
+                            },
+                            {
+                                question:
+                                    '(让我们不要为小事情烦心) (which) we should ignore and forget.',
+                                answer: "Let's not allow ourselves to be upset by trifles",
+                            },
+                            {
+                                question:
+                                    'It is not the first time that (你发现自己处于这种情形中).',
+                                answer: "you've found yourself in such a situation",
+                            },
+                            {
+                                question:
+                                    '我劝他别去东海岸，因为那里到处是游客。(warn ... off)',
+                                answer: 'I warned him off going to the east coast because it was full of tourists.',
+                            },
+                            {
+                                question:
+                                    '他看上去似乎是无罪的，但证据表明并非如此。(otherwise)',
+                                answer: 'He seemed not guilty, but the evidence suggested otherwise.',
+                            },
+                            {
+                                question:
+                                    'These examples demonstrate how (有些学生的简历写得多么差).',
+                                answer: 'poorly some students write their resumes',
+                            },
+                            {
+                                question:
+                                    '考虑到他们缺乏经验，这工作他们已做得相当不错了。(given)',
+                                answer: 'Given their inexperience, they have done quite a good job.',
+                            },
+                            {
+                                question:
+                                    '我们能否从讨论上次会议产生的问题开始？(arise from)',
+                                answer: 'Can we begin by discussing questions / problems arising from the last meeting?',
+                            },
+                            {
+                                question:
+                                    '(相信自己能够完成目标并解决问题的人) are more likely to do well in school.',
+                                answer: 'People who believe they can accomplish goals and solve problems',
+                            },
+                            {
+                                question:
+                                    '由于紧急情况，这个医生几小时内都没有空。(because of)',
+                                answer: 'Because of an emergency, the doctor will not be available for several hours.',
+                            },
+                            {
+                                question:
+                                    '东西便宜并不见得就是质量低劣。(not necessarily)',
+                                answer: "The fact that something is cheap doesn't necessarily mean it's of low quality.",
+                            },
+                            {
+                                question:
+                                    'This is the best result that can be expected (在这样的情况下).',
+                                answer: 'in such circumstances',
+                            },
+                            {
+                                question:
+                                    '"I don\'t love acting (像以前那样)", said Angelina Jolie.',
+                                answer: 'as much as I once did',
+                            },
+                            {
+                                question:
+                                    '(这个困难促使我动脑筋) to find an answer.',
+                                answer: 'This difficulty challenges my mind',
+                            },
+                            {
+                                question:
+                                    '税收将会如何影响低收入的人？(affect)',
+                                answer: 'How will taxes affect people with low incomes?',
+                            },
+                            {
+                                question:
+                                    '我母亲总是告诉我，从长远来看我会很高兴我没有放弃练钢琴。(in the long run)',
+                                answer: "My mother always told me that in the long run I would be glad I didn't give up practicing the piano.",
+                            },
+                            {
+                                question:
+                                    '这些书的价格从10美元到20美元不等。(range from... to... )',
+                                answer: 'The books range in price from $10 to $20.',
+                            },
+                            {
+                                question:
+                                    'Despite his stubbornness, he knew in his heart that he should (避免引起任何怀疑).',
+                                answer: 'avoid arousing any suspicions',
+                            },
+                            {
+                                question:
+                                    '如果没有人可以求教，就难以作出恰当的选择。(turn to)',
+                                answer: 'Without anyone to turn to for help, it would be difficult to make an appropriate choice.',
+                            },
+                            {
+                                question:
+                                    '只有战胜了羞怯之后，人们才会更自信地生活。(only when)',
+                                answer: 'Only when people overcome their shyness can they live more confidently.',
+                            },
+                            {
+                                question:
+                                    'The most important thing is (不是你所说的，而是你所做的).',
+                                answer: 'not what you say but what you do',
+                            },
+                            {
+                                question: '(将要出现的新威胁) is unemployment.',
+                                answer: 'The new threat on the horizon',
+                            },
+                            {
+                                question:
+                                    '(花太多的时间老是想着过去) can get in the way of enjoying life as it happens.',
+                                answer: 'Too much time spent dwelling on the past',
+                            },
+                            {
+                                question:
+                                    '在我看来你没有什么选择。(It seems to me that...)',
+                                answer: "It seems to me that you don't have much choice.",
+                            },
+                            {
+                                question:
+                                    "If you don't define your goal, you don't know in which (你应该向哪个方向前进).",
+                                answer: 'direction you should be heading',
+                            },
+                            {
+                                question:
+                                    'Shyness can vary (从感觉轻微的不适到高度的焦虑) that impact us in almost everything we do.',
+                                answer: 'from feeling mild discomfort to high levels of anxiety',
+                            },
+                            {
+                                question:
+                                    '(他又回到了) the old habit of drinking.',
+                                answer: 'He slipped into',
+                            },
+                            {
+                                question:
+                                    '对这么一幢大房子来说这价格相当便宜，但你得考虑维修费用。(take into consideration)',
+                                answer: 'For such a big house the price is fairly cheap / low, but you have to take into consideration the money you will spend on maintenance and repairs.',
+                            },
+                            {
+                                question:
+                                    "I didn't realize (上演一个剧本需要这么多的工作).",
+                                answer: 'putting on / staging a play involved so much work',
+                            },
+                            {
+                                question:
+                                    '他用音乐表现了他失去妻子的悲痛。(find expression in)',
+                                answer: 'His sadness at the death of his wife found expression in his music.',
+                            },
+                            {
+                                question:
+                                    '如果要我选择一个方案的话，我将毫不犹豫地支持后者。(the latter)',
+                                answer: 'If I had to select one plan, I would not hesitate to support the latter.',
+                            },
+                            {
+                                question:
+                                    'Today neurobiologists no longer argue about (大脑能否生成新细胞).',
+                                answer: 'whether or not the brain can grow new cells',
+                            },
+                            {
+                                question:
+                                    'While you should not dwell on your past, (花些时间回顾和思考你走过的路) will help you plan for the future.',
+                                answer: 'taking the time to review and reflect on the path you have taken / spending some time reviewing and thinking about the path you have taken',
+                            },
+                            {
+                                question:
+                                    'You may love someone but (不一定得和他结婚).',
+                                answer: 'not necessarily have to marry him',
+                            },
+                            {
+                                question:
+                                    '(我们有不同的方法) expressing the same idea.',
+                                answer: 'We have alternative ways of',
+                            },
+                            {
+                                question:
+                                    'It will be interpreted (成批评，无论你说什么).',
+                                answer: 'as criticism no matter what you say',
+                            },
+                            {
+                                question:
+                                    "(没有一种可确信的方式来预测) who will develop asthma (哮喘) and who won't.",
+                                answer: 'There is no sure way to tell / predict',
+                            },
+                            {
+                                question:
+                                    '(我过去喜欢摄影), but I now have no time to pursue any hobbies.',
+                                answer: 'I used to enjoy / like photography',
+                            },
+                        ],
+                        type3: [
+                            {
+                                word: [
+                                    'scale',
+                                    'competition',
+                                    'injure',
+                                    'conflict',
+                                    'instinct',
+                                    'remote',
+                                    'assert',
+                                    'accumulate',
+                                    'evident',
+                                    'intrude',
+                                ],
+                                question: [
+                                    'Martin likes to ___________ into a matter that does not concern him.',
+                                    'There have been several minor ___________ between the two countries over the past decade.',
+                                    'What factors caused the ___________ of water at these sites?',
+                                    'They opened up a mine in the ___________ areas.',
+                                    'A number of bombs have exploded, seriously ___________ at least five people.',
+                                    'Our company wants employees who are not afraid to speak up and will ___________ their ideas.',
+                                    'Answers to each part of the ___________ will be printed two months later.',
+                                    'Her ___________ told her that she should not be talking but she could not stop.',
+                                    'The goods were in perfect condition when they left here, and the damage ___________ occurred during transit (运输).',
+                                    'The ___________ of economic development in the city is so huge that much more investment is needed.',
+                                ],
+                                answer: [
+                                    'intrude',
+                                    'conflicts',
+                                    'accumulation',
+                                    'remote',
+                                    'injuring',
+                                    'assert',
+                                    'competition',
+                                    'instinct',
+                                    'evidently',
+                                    'scale',
+                                ],
+                            },
+                            {
+                                word: [
+                                    'structure',
+                                    'process',
+                                    'sample',
+                                    'value',
+                                    'trap',
+                                ],
+                                question: [
+                                    'Jack left the job after 10 years because he was beginning to feel ___________.',
+                                    'His contribution was of little or no practical ___________.',
+                                    'Please bring some ___________ of your work to the interview.',
+                                    'The chemical ___________ of this particular molecule (分子) is very unusual.',
+                                    'Hopefully, the thief will fall right into our___________.',
+                                    'They ___________ the program to reach all ages.',
+                                    'We ___________ a selection of different bottled waters.',
+                                    'My new laptop (笔记本电脑) can ___________ information much more quickly than my old computer.',
+                                    'The bank ___________ the house at less than the price the seller was asking.',
+                                    'Increasing the number of women in top management jobs will be a slow ___________.',
+                                ],
+                                answer: [
+                                    'trapped',
+                                    'value',
+                                    'samples',
+                                    'structure',
+                                    'trap',
+                                    'structured',
+                                    'sampled',
+                                    'process',
+                                    'valued',
+                                    'process',
+                                ],
+                            },
+                            {
+                                word: [
+                                    'compliment',
+                                    'overcome',
+                                    'diminish',
+                                    'detrimental',
+                                    'jealousy',
+                                    'profound',
+                                    'accent (v.)',
+                                    'eventually',
+                                    'reassurances',
+                                    'isolate',
+                                ],
+                                question: [
+                                    "The doctor's discovery will have a(n) ___________ influence on mankind.",
+                                    'She was overwhelmed with ___________ when she heard that he had been given a promotion.',
+                                    'When you learn a second language you have many difficulties to ___________.',
+                                    'If you keep practicing, you might ___________ become a good dancer.',
+                                    'She asked us all what we thought of her new hairstyle, but she was only looking for ___________.',
+                                    'The amount of water in the pond will ___________ as the dry season continues.',
+                                    "Mary's comforting words provided the ___________ I needed.",
+                                    'They are worried that their decision might prove to be ___________ to the future of the company.',
+                                    'When a person has an infectious disease, he is usually ___________ from other people.',
+                                    'Throughout his speech, he ___________ the seriousness of the situation.',
+                                ],
+                                answer: [
+                                    'profound',
+                                    'jealousy',
+                                    'overcome',
+                                    'eventually',
+                                    'compliments',
+                                    'diminish',
+                                    'reassurance',
+                                    'detrimental',
+                                    'isolated',
+                                    'accented',
+                                ],
+                            },
+                            {
+                                word: [
+                                    'suppress',
+                                    'fulfilment',
+                                    'salaried',
+                                    'resentment',
+                                    'unsupervised',
+                                    'perfect (v.)',
+                                    'constantly',
+                                    'impact',
+                                    'candidly',
+                                    'burden',
+                                    'opportunity',
+                                    'assistance',
+                                ],
+                                question: [
+                                    'We are ___________ reminded of his success.',
+                                    'The change in leadership will have a huge ___________ on government policy.',
+                                    'The financial ___________ will be more evenly shared.',
+                                    "___________, David, I think you're being unreasonable.",
+                                    'Seeing my work completed successfully gives me a strong sense of ___________.',
+                                    'The party had 143 ___________ staff, most of whom it could no longer afford to keep.',
+                                    'She expressed ___________ at being reported as a gossip girl.',
+                                    "He's been running the company with the ___________ of his son.",
+                                    'She needs to ___________ her Arabic before going to work in Cairo.',
+                                    'Harry could scarcely ___________ a smile.',
+                                ],
+                                answer: [
+                                    'constantly',
+                                    'impact',
+                                    'burden',
+                                    'Candidly',
+                                    'fulfilment',
+                                    'salaried',
+                                    'resentment',
+                                    'assistance',
+                                    'perfect',
+                                    'suppress',
+                                ],
+                            },
+                            {
+                                word: [
+                                    'seize on',
+                                    'resort to',
+                                    'every so often',
+                                    'in case',
+                                    'lead to',
+                                    'in reality',
+                                    'at stake',
+                                    'take stock of',
+                                    'talk over',
+                                    'start over',
+                                ],
+                                question: [
+                                    'I have the key ___________ we want to go inside.',
+                                    '___________, she spends a weekend in London.',
+                                    'His punishing (累人的) work schedule had made him ___________ drugs.',
+                                    "Let's ___________ the problem with our teacher.",
+                                    'Maybe we can forget what has happened and ___________.',
+                                    'They were claiming record profits when, ___________, the company was close to bankruptcy.',
+                                    'If we lose the contract, hundreds of jobs are ___________.',
+                                    'He ___________ the suggestion as a way of getting out of his financial difficulties.',
+                                    'The bank has offered a reward for any information ___________ the arrest of the man.',
+                                    'After two years spent teaching abroad, she returned home for a month to ___________ her life.',
+                                ],
+                                answer: [
+                                    'in case',
+                                    'Every so often',
+                                    'resort to',
+                                    'talk over',
+                                    'start over',
+                                    'in reality',
+                                    'at stake',
+                                    'seized on',
+                                    'leading to',
+                                    'take stock of',
+                                ],
+                            },
+                        ],
+                    },
+                },
+                watch: {
+                    group(newValue, oldValue) {
+                        if (this.theQuestion) {
+                            if (this.theQuestion.submit) {
+                                this.next()
+                            }
+                            this.updateInput()
+                            this.updateKeyTable()
+                        } else {
+                            this.group = oldValue
+                        }
+                    },
+                },
+                methods: {
+                    refresh() {
+                        this.$set(this.theQuestion, 'submit', false)
+                        this.updateInput()
+                    },
+                    prev() {
+                        this.updateInput()
+                        this.index =
+                            (this.questions.length + this.index - 1) %
+                            this.questions.length
+                    },
+                    next() {
+                        this.updateInput()
+                        this.index = (this.index + 1) % this.questions.length
+                        if (this.index === 0) {
+                            shuffle(this.questions)
+                            for (let e of this.questions) {
+                                this.$set(e, 'submit', false)
+                                if (this.group === 0) {
+                                    shuffleOptions(e)
+                                }
+                                if (this.group === 2) {
+                                    shuffleQuestions(e)
+                                }
+                            }
+                        }
+                    },
+                    submit(index) {
+                        if (!this.theQuestion.submit) {
+                            this.$set(this.theQuestion, 'submit', true)
+                            if (this.group === 0) {
+                                this.input = index
+                            }
+                        }
+                    },
+                    handleKeyDown(e) {
+                        if (this.keyTable[e.key]) {
+                            console.log(this.keyTable[e.key])
+                            this.keyTable[e.key]()
+                        }
+                    },
+                    updateInput() {
+                        this.input = [null, '', []][this.group]
+                    },
+                    updateKeyTable() {
+                        this.keyTable = Object.assign(
+                            {
+                                Enter: this.submit,
+                                ArrowLeft: this.prev,
+                                ArrowRight: this.next,
+                                Delete: this.refresh,
+                                Escape: () => (this.drawer = !this.drawer),
+                            },
+                            this.group
+                                ? []
+                                : [
+                                      undefined,
+                                      () => this.submit(0),
+                                      () => this.submit(1),
+                                      () => this.submit(2),
+                                      () => this.submit(3),
+                                  ]
+                        )
+                    },
+                },
+                computed: {
+                    type() {
+                        return 'type' + (this.group + 1)
+                    },
+                    questions() {
+                        return this.data[this.type]
+                    },
+                    index: {
+                        get() {
+                            return this.questions.index
+                        },
+                        set(e) {
+                            this.questions.index = e
+                        },
+                    },
+                    theQuestion() {
+                        return this.questions[this.index]
+                    },
+                },
+                created() {
+                    for (let key in this.data) {
+                        this.$set(this.data[key], 'index', 0)
+                        shuffle(this.data[key])
+                    }
+                    for (let e of this.data.type1) {
+                        e.answer = 'ABCD'.indexOf(e.answer)
+                        shuffleOptions(e)
+                    }
+                    for (let e of this.data.type3) {
+                        shuffleQuestions(e)
+                    }
+                    this.updateInput()
+                    this.updateKeyTable()
+                    document.addEventListener('keydown', this.handleKeyDown)
+                },
+                destroyed() {
+                    document.removeEventListener('keydown', this.handleKeyDown)
+                },
+            })
+        </script>
+    </body>
+</html>
