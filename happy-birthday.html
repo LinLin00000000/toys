@@ -65,7 +65,20 @@
     <div id="candles"></div>
     <script>
       const name = 'xxx'
-      const age = 22
+      const birthdayString = '20020822' // 输入生日，格式为 YYYYMMDD
+
+      const currentYear = new Date().getFullYear()
+      const birthYear = parseInt(birthdayString.slice(0, 4), 10)
+      const birthMonth = parseInt(birthdayString.slice(4, 6), 10)
+      const birthDay = parseInt(birthdayString.slice(6, 8), 10)
+
+      // 动态计算年龄
+      const today = new Date()
+      const age =
+        today.getMonth() + 1 > birthMonth ||
+        (today.getMonth() + 1 === birthMonth && today.getDate() >= birthDay)
+          ? currentYear - birthYear
+          : currentYear - birthYear - 1
 
       const container = document.getElementById('candles')
       const title = document.querySelector('title')
