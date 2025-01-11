@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="zh">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>🎂</title>
+    <style>
+      :root {
+        --base-size: 2;
+      }
+      body {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        flex-direction: column;
+        background-color: black;
+        color: white;
+        text-align: center;
+        margin: 0;
+        font-size: calc(16px * var(--base-size));
+        overflow: hidden;
+      }
+      .candle {
+        font-size: calc(48px * var(--base-size));
+        display: inline-block;
+        position: relative;
+      }
+      .flame {
+        display: block;
+      }
+      .cover {
+        position: absolute;
+        width: 100%;
+        height: 40%;
+        background-color: black;
+        top: 0;
+      }
+      .cover.hidden {
+        display: none;
+      }
+      .birthday-cake {
+        font-size: 80vw;
+        max-height: 80vh;
+        display: block;
+        margin: 0;
+        text-align: center;
+      }
+      .birthday-message {
+        margin: 0;
+      }
+      @media (max-width: 768px) {
+        .candle {
+          font-size: calc(24px * var(--base-size));
+        }
+      }
+      @media (max-width: 480px) {
+        .candle {
+          font-size: calc(18px * var(--base-size));
+        }
+      }
+    </style>
+  </head>
+  <body onclick="blowCandle()">
+    <p id="instruction">点击屏幕吹灭蜡烛 (｡◕∀◕｡)</p>
+    <div id="candles"></div>
+    <script>
+      const name = 'xxx'
+      const age = 22
+
+      const container = document.getElementById('candles')
+      const title = document.querySelector('title')
+      const instruction = document.getElementById('instruction')
+      adjustFontSize(instruction)
+      const candleCharLength = '🕯️'.length
+
+      title.textContent = '🕯️'.repeat(age)
+
+      for (let i = 0; i < age; i++) {
+        const candle = document.createElement('span')
+        candle.classList.add('candle')
+        const flame = document.createElement('span')
+        flame.textContent = '🕯️'
+        flame.classList.add('flame')
+        const cover = document.createElement('div')
+        cover.classList.add('cover', 'hidden')
+        candle.appendChild(flame)
+        candle.appendChild(cover)
+        container.appendChild(candle)
+      }
+
+      function blowCandle() {
+        const covers = document.querySelectorAll('.cover.hidden')
+        if (covers.length > 0) {
+          covers[0].classList.remove('hidden')
+          title.textContent = title.textContent.slice(0, -candleCharLength)
+          if (covers.length === 1) {
+            setTimeout(() => {
+              instruction.style.display = 'none'
+              showBirthdayMessage()
+            }, 500)
+          }
+        }
+      }
+
+      function showBirthdayMessage() {
+        title.textContent = '🎂 生日快乐！'
+        container.innerHTML = `<p class="birthday-message">祝${name}生日快乐 ٩(｡・ω・｡)و</p><p class="birthday-cake">🎂</p>`
+        const messageElement = document.querySelector('.birthday-message')
+        adjustFontSize(messageElement)
+      }
+
+      function adjustFontSize(textElement, n = 1) {
+        const maxSize = 40
+        const screenWidth = window.innerWidth
+        const textSize =
+          Math.min(screenWidth / textElement.textContent.length, maxSize) * n
+        textElement.style.fontSize = `${textSize}px`
+      }
+
+      // 设置 body 的高度以防止滚动
+      function setBodyHeight() {
+        document.body.style.height = window.innerHeight + 'px'
+      }
+      window.onresize = setBodyHeight
+      setBodyHeight()
+
+      // 蛋糕彩蛋
+      console.log('🎂🎂🎂')
+      console.log('只有前端开发者才能看到这个彩蛋，不愧是你 (๑•̀ㅂ•́)و✧')
+    </script>
+  </body>
+</html>
